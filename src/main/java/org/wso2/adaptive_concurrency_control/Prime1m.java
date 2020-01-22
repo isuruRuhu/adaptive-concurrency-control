@@ -4,6 +4,8 @@ import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
 
 import com.codahale.metrics.Timer;
 
@@ -17,20 +19,25 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpUtil;
+import org.slf4j.LoggerFactory;
 
 /**
  * Test to measure performance of Primality check
  */
 public class Prime1m implements Runnable {
 
+	private final AtomicInteger users;
 	private FullHttpRequest msg;
 	private ChannelHandlerContext ctx;
 	private Timer.Context timerContext;
 
-	public Prime1m(ChannelHandlerContext ctx, FullHttpRequest msg, Timer.Context timerCtx) {
+	public static org.slf4j.Logger LOGGER = LoggerFactory.getLogger(AdaptiveConcurrencyControl.class);
+
+	public Prime1m(ChannelHandlerContext ctx, FullHttpRequest msg, Timer.Context timerCtx, AtomicInteger users) {
 		this.msg = msg;
 		this.ctx = ctx;
 		this.timerContext = timerCtx;
+		this.users = users;
 	}
 
 	@Override
@@ -38,11 +45,13 @@ public class Prime1m implements Runnable {
 		ByteBuf buf = null;
 		try {
 			Random rand = new Random();
-			int number = rand.nextInt((1000021) - 1000000 ) + 1000000;  //Generate random integer between 100000 and 100020
+//			int number = rand.nextInt((1000021) - 1000000 ) + 1000000;  //Generate random integer between 100000 and 100020
+			int number = 1000003;  //Generate random integer between 100000 and 100020
 			String resultString = "true";
 			for (int i=2; i<number; i++) {
-				if (number%i == 0) {
-					resultString="false";
+				if (number % i == 0) {
+					resultString = "false";
+					break;
 				}
 			}
 			buf = Unpooled.copiedBuffer(resultString.getBytes());
@@ -54,6 +63,8 @@ public class Prime1m implements Runnable {
 		FullHttpResponse response = null;
 		try {
 			response = new DefaultFullHttpResponse(HTTP_1_1, OK, buf);
+//			System.out.println(users.decrementAndGet());
+			LOGGER.info(String.valueOf(users.decrementAndGet()));
 		} catch (Exception e) {
 			AdaptiveConcurrencyControl.LOGGER.error("Exception in Netty Handler", e);
 		}
